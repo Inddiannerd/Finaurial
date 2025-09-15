@@ -1,28 +1,56 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { useNotification } from '../context/NotificationContext'; // Import useNotification
 
 const RegisterForm = () => {
   const navigate = useNavigate();
+  const { showNotification } = useNotification(); // Use the hook
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
 
   const handleSubmit = async e => {
     e.preventDefault();
+    
+    // Client-side validation
+    if (!username || !email || !password) {
+      showNotification('Please fill in all fields', 'error');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showNotification('Please enter a valid email address', 'error');
+      return;
+    }
+
+    // Password validation
+    if (password.length < 6) {
+      showNotification('Password must be at least 6 characters long', 'error');
+      return;
+    }
+
     try {
-      await axios.post('/api/auth/register', { username, email, password });
-      navigate('/login');
+      const response = await axios.post('http://localhost:5000/api/auth/register', { username, email, password });
+      if (response.data.token) {
+        showNotification('Registration successful!', 'success');
+        localStorage.setItem('token', response.data.token);
+        navigate('/dashboard');
+      } else {
+        showNotification('Registration successful! Please log in.', 'success');
+        navigate('/login');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      showNotification(err.response?.data?.msg || 'Registration failed', 'error');
     }
   };
 
   return (
     <div className="max-w-sm mx-auto mt-20 p-6 border rounded shadow">
       <h2 className="text-center text-2xl font-bold mb-6">Register</h2>
-      {error && <p className="text-red-600 mb-4">{error}</p>}
+      {/* Removed local error display as notifications handle it */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <input 
           type="text" 

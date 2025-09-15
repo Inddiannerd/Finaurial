@@ -1,50 +1,91 @@
-import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import './App.css';
 import './index.css';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
-import LoginForm from './components/LoginForm';
-import RegisterForm from './components/RegisterForm';
-import Dashboard from './components/Dashboard';
-import TransactionForm from './components/TransactionForm';
-import BudgetForm from './components/BudgetForm';
-import Reports from './pages/Reports';
+import PrivateRoute from './components/PrivateRoute';
+import AdminRoute from './components/AdminRoute';
+import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const location = useLocation();
+// Pages
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
+import ReportsPage from './pages/ReportsPage';
+import SavingsPage from './pages/SavingsPage';
+import GoalsPage from './pages/GoalsPage';
+import AdminPage from './pages/AdminPage';
+import TransactionsPage from './pages/TransactionsPage';
+import BudgetsPage from './pages/BudgetsPage';
+import ContactUsPage from './pages/ContactUsPage';
+import NotFound from './pages/NotFound';
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    setIsAuthenticated(!!token);
-  }, []);
+// A layout for protected routes
+const ProtectedLayout = () => (
+  <PrivateRoute>
+    <Layout>
+      <Outlet />
+    </Layout>
+  </PrivateRoute>
+);
 
-  if (!isAuthenticated && !['/login', '/register'].includes(location.pathname)) {
-    return <Navigate to="/login" replace />;
-  }
+// A layout for admin routes
+const AdminLayout = () => (
+  <AdminRoute>
+    <Layout>
+      <Outlet />
+    </Layout>
+  </AdminRoute>
+);
 
-  // Separate public and private routes
-  if (!isAuthenticated) {
-    return (
-      <Routes>
-        <Route path="/login" element={<LoginForm setIsAuthenticated={setIsAuthenticated} />} />
-        <Route path="/register" element={<RegisterForm />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
-  }
+const AppRoutes = () => {
+  const { token } = useAuth();
 
-  // Protected routes with Layout
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="add-transaction" element={<TransactionForm />} />
-        <Route path="budget" element={<BudgetForm />} />
-        <Route path="reports" element={<Reports />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
+
+      {/* Protected Routes with Layout */}
+      <Route element={<ProtectedLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/budgets" element={<BudgetsPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/savings" element={<SavingsPage />} />
+        <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/contact-us" element={<ContactUsPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+
+      {/* Admin Route with Layout */}
+      <Route element={<AdminLayout />}>
+        <Route path="/admin" element={<AdminPage />} />
+      </Route>
+      
+      <Route path="*" element={<NotFound />} />
     </Routes>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <ThemeProvider>
+          <NotificationProvider>
+            <CurrencyProvider>
+              <AppRoutes />
+            </CurrencyProvider>
+          </NotificationProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
