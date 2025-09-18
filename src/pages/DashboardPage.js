@@ -2,11 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from '../utils/axios';
 import Card from '../components/Card';
 import { Line, Pie } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler, BarElement } from 'chart.js';
 import { useTheme } from '../context/ThemeContext';
 import { useCurrency } from '../context/CurrencyContext';
+import CumulativeSavingsChart from '../components/charts/CumulativeSavingsChart';
+import MonthlyExpensesChart from '../components/charts/MonthlyExpensesChart';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler, BarElement);
 
 const DashboardCard = ({ title, value, format, colorClass = '' }) => (
   <Card>
@@ -22,6 +24,10 @@ const SkeletonCard = () => (
   </Card>
 );
 
+const ChartSkeleton = () => (
+    <div className="h-80 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"></div>
+);
+
 const DashboardPage = () => {
   const { theme } = useTheme();
   const { formatCurrency } = useCurrency();
@@ -29,6 +35,24 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
+
+  const [showMore, setShowMore] = useState(false);
+  const [chartsToShow, setChartsToShow] = useState({});
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [savingsData, setSavingsData] = useState(null);
+  const [expensesData, setExpensesData] = useState(null);
+  const [moreChartsError, setMoreChartsError] = useState(null);
+
+  useEffect(() => {
+    const savedShowMore = localStorage.getItem('dashboardShowMore');
+    if (savedShowMore) {
+      setShowMore(JSON.parse(savedShowMore));
+    }
+    const savedChartsToShow = localStorage.getItem('dashboardChartsToShow');
+    if (savedChartsToShow) {
+      setChartsToShow(JSON.parse(savedChartsToShow));
+    }
+  }, []);
 
   const fetchDashboardData = useCallback(async (abortController) => {
     setError(null);
@@ -64,6 +88,59 @@ const DashboardPage = () => {
       abortController.abort();
     };
   }, [fetchDashboardData]);
+
+  const fetchMoreChartsData = useCallback(async () => {
+    if (!showMore || !Object.values(chartsToShow).some(v => v)) return;
+
+    setLoadingMore(true);
+    setMoreChartsError(null);
+
+    try {
+        const requests = [];
+        if (chartsToShow.cumulativeSavings) {
+            requests.push(axios.get('/dashboard/cumulative-savings'));
+        } else {
+            requests.push(Promise.resolve(null));
+        }
+        if (chartsToShow.monthlyExpenses) {
+            requests.push(axios.get('/dashboard/monthly-category-expenses'));
+        } else {
+            requests.push(Promise.resolve(null));
+        }
+
+        const [savingsRes, expensesRes] = await Promise.all(requests);
+
+        if (isMounted.current) {
+            if (savingsRes) setSavingsData(savingsRes.data.data);
+            if (expensesRes) setExpensesData(expensesRes.data.data);
+        }
+    } catch (err) {
+        if (isMounted.current) {
+            setMoreChartsError('Failed to load additional charts.');
+            console.error('Error fetching more charts:', err.response?.data?.detail || err.message);
+        }
+    } finally {
+        if (isMounted.current) {
+            setLoadingMore(false);
+        }
+    }
+  }, [showMore, chartsToShow]);
+
+  useEffect(() => {
+    fetchMoreChartsData();
+  }, [fetchMoreChartsData]);
+
+  const handleShowMoreToggle = () => {
+    const newShowMore = !showMore;
+    setShowMore(newShowMore);
+    localStorage.setItem('dashboardShowMore', JSON.stringify(newShowMore));
+  };
+
+  const handleChartToggle = (chartName) => {
+    const newChartsToShow = { ...chartsToShow, [chartName]: !chartsToShow[chartName] };
+    setChartsToShow(newChartsToShow);
+    localStorage.setItem('dashboardChartsToShow', JSON.stringify(newChartsToShow));
+  };
 
   const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: theme === 'light' ? '#1F2937' : '#F9FAFB' } } }, scales: { x: { ticks: { color: theme === 'light' ? '#374151' : '#9CA3AF' } }, y: { ticks: { color: theme === 'light' ? '#374151' : '#9CA3AF' } } } };
   const lineChartColors = theme === 'light' ? { income: '#10B981', expense: '#EF4444' } : { income: '#34D399', expense: '#F87171' };
@@ -136,6 +213,53 @@ const DashboardPage = () => {
             </Card>
         </div>
       </div>
+
+      <div className="text-center">
+        <button onClick={handleShowMoreToggle} className="text-light-accent dark:text-dark-accent font-semibold" aria-expanded={showMore}>
+          {showMore ? 'Show less' : 'Show more'}
+        </button>
+      </div>
+
+      {showMore && (
+        <div className="space-y-6">
+            <div className="flex items-center justify-center space-x-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" checked={!!chartsToShow.cumulativeSavings} onChange={() => handleChartToggle('cumulativeSavings')} className="form-checkbox" />
+                    <span>Cumulative Savings</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" checked={!!chartsToShow.monthlyExpenses} onChange={() => handleChartToggle('monthlyExpenses')} className="form-checkbox" />
+                    <span>Monthly Expenses by Category</span>
+                </label>
+            </div>
+
+            {moreChartsError && (
+                <Card className="bg-light-error/20 border-light-error/50 text-center">
+                    <p className="text-light-error font-medium">{moreChartsError}</p>
+                    <button onClick={fetchMoreChartsData} className="mt-2 text-sm underline">Retry</button>
+                </Card>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {chartsToShow.cumulativeSavings && (
+                    <Card>
+                        <h2 className="text-lg font-medium mb-4">Cumulative Savings Growth</h2>
+                        <div className="h-80">
+                            {loadingMore ? <ChartSkeleton /> : savingsData && savingsData.labels.length > 0 ? <CumulativeSavingsChart data={savingsData} /> : <p className="flex items-center justify-center h-full">No savings data available.</p>}
+                        </div>
+                    </Card>
+                )}
+                {chartsToShow.monthlyExpenses && (
+                    <Card>
+                        <h2 className="text-lg font-medium mb-4">Category-wise Monthly Expenses</h2>
+                        <div className="h-80">
+                            {loadingMore ? <ChartSkeleton /> : expensesData && expensesData.labels.length > 0 ? <MonthlyExpensesChart data={expensesData} /> : <p className="flex items-center justify-center h-full">No expense data for chart.</p>}
+                        </div>
+                    </Card>
+                )}
+            </div>
+        </div>
+      )}
     </div>
   );
 };

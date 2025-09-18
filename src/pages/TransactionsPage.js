@@ -5,14 +5,15 @@ import TransactionForm from '../components/TransactionForm';
 import Card from '../components/Card';
 import { useNotification } from '../context/NotificationContext';
 import Modal from 'react-modal';
+import { useCurrency } from '../context/CurrencyContext';
+import { useAuth } from '../context/AuthContext';
 
 Modal.setAppElement('#root');
-
-import { useCurrency } from '../context/CurrencyContext';
 
 const TransactionsPage = () => {
   const { showNotification } = useNotification();
   const { formatCurrency } = useCurrency();
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,7 @@ const TransactionsPage = () => {
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [viewAll, setViewAll] = useState(false);
   const addButtonRef = useRef(null);
 
   const queryParams = useMemo(() => ({
@@ -31,7 +33,8 @@ const TransactionsPage = () => {
     ...filters,
     search: debouncedSearchTerm,
     sort: `${sort.field},${sort.direction}`,
-  }), [pagination, filters, debouncedSearchTerm, sort]);
+    all: user?.role === 'admin' && viewAll ? 'true' : 'false',
+  }), [pagination, filters, debouncedSearchTerm, sort, user?.role, viewAll]);
 
   const fetchTransactions = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -77,10 +80,12 @@ const TransactionsPage = () => {
       if (!window.confirm('Are you sure?')) return;
       try {
           await axios.delete(`/transactions/${id}`);
+          setTransactions(prev => prev.filter(t => t._id !== id));
+          setTotal(prev => prev - 1);
           showNotification('Transaction deleted', 'success');
-          fetchTransactions(false);
       } catch (err) {
-          showNotification('Failed to delete transaction', 'error');
+          const errorMsg = err.response?.data?.error || 'Failed to delete transaction';
+          showNotification(errorMsg, 'error');
       }
   }
 
@@ -111,7 +116,7 @@ const TransactionsPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{t.type}</span></td>
                   <td className="px-6 py-4 whitespace-nowrap">{t.category}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{formatCurrency(t.amount)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(t.date).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</td>
                   <td className="px-6 py-4 whitespace-nowrap truncate max-w-xs">{t.description}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                     <button onClick={() => { setEditingTransaction(t); setIsModalOpen(true); }} className="text-light-accent dark:text-dark-accent">Edit</button>
@@ -139,6 +144,15 @@ const TransactionsPage = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Transactions</h1>
+        {user?.role === 'admin' && (
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium">View All</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={viewAll} onChange={() => setViewAll(!viewAll)} className="sr-only peer" />
+              <div className="w-11 h-6 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-light-accent"></div>
+            </label>
+          </div>
+        )}
         <button ref={addButtonRef} onClick={() => { setEditingTransaction(null); setIsModalOpen(true); }} className="bg-light-accent dark:bg-dark-accent text-white px-4 py-2 rounded-md min-h-[44px]">
           Add Transaction
         </button>

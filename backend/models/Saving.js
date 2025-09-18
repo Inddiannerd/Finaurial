@@ -17,11 +17,13 @@ const SavingSchema = new mongoose.Schema({
   },
   date: {
     type: Date,
-    default: Date.now,
+    required: true,
   },
   note: {
     type: String,
   },
 });
+
+SavingSchema.index({ user: 1, date: -1 });
 
 module.exports = mongoose.model('Saving', SavingSchema);

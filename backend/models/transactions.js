@@ -21,11 +21,13 @@ const TransactionSchema = new mongoose.Schema({
   },
   date: {
     type: Date,
-    default: Date.now,
+    required: true,
   },
   description: {
     type: String,
   },
 });
+
+TransactionSchema.index({ user: 1, date: -1 });
 
 module.exports = mongoose.model('Transaction', TransactionSchema);

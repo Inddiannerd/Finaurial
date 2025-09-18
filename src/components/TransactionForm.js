@@ -40,7 +40,7 @@ const TransactionForm = ({ onTransactionAdded, onTransactionUpdated, onCancel, t
         return;
     }
 
-    const transactionData = { type, category, amount: parseFloat(amount), date, description };
+    const transactionData = { type, category, amount: parseFloat(amount), date: new Date(date).toISOString(), description };
 
     try {
       if (isEditMode) {

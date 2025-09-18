@@ -10,6 +10,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CurrencyProvider } from './context/CurrencyContext';
+import { FeatureProvider } from './context/FeatureContext';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -80,7 +81,9 @@ function App() {
         <ThemeProvider>
           <NotificationProvider>
             <CurrencyProvider>
-              <AppRoutes />
+              <FeatureProvider>
+                <AppRoutes />
+              </FeatureProvider>
             </CurrencyProvider>
           </NotificationProvider>
         </ThemeProvider>

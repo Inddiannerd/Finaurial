@@ -33,14 +33,31 @@ exports.getSavings = async (req, res) => {
 // @access  Private
 exports.addSaving = async (req, res) => {
   try {
-    const { amount, type, note } = req.body;
+    const { amount: amountStr, type, note, date } = req.body;
+
+    if (!date || !new Date(date).getTime()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid date',
+      });
+    }
+
+    const amount = parseFloat(amountStr);
     const user = await User.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    const newSaving = await Saving.create({ user: req.user.id, amount, type, note });
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid amount' });
+    }
+
+    if (type === 'withdrawal' && (user.savings || 0) < amount) {
+      return res.status(400).json({ success: false, error: 'Unable to withdraw, please save more' });
+    }
+
+    const newSaving = await Saving.create({ user: req.user.id, amount, type, note, date: new Date(date) });
 
     if (type === 'deposit') {
       user.savings = (user.savings || 0) + amount;

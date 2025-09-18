@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import axios from '../utils/axios';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
-
-const DEFAULT_FEATURES = {
-  Transactions: true,
-  Budgets: true,
-  Reports: true,
-  Savings: true,
-  Goals: true,
-};
+import { useFeatures } from '../context/FeatureContext';
 
 const CurrencySelector = () => {
   const { currency, setCurrency, supportedCurrencies } = useCurrency();
@@ -35,38 +27,13 @@ const CurrencySelector = () => {
 };
 
 const Navbar = () => {
-  const { token, user, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const [featureFlags, setFeatureFlags] = useState(DEFAULT_FEATURES);
+  const { featureFlags } = useFeatures();
   const [isOpen, setIsOpen] = useState(false);
 
   const userRole = user?.role || 'user';
-
-  useEffect(() => {
-    const fetchFeatureFlags = async () => {
-      if (!token) return;
-      try {
-        const res = await axios.get('/admin/features');
-        if (res.data) {
-            const flags = res.data.reduce((acc, flag) => {
-              const name = flag.name || flag.feature;
-              if (name) {
-                  acc[name] = flag.isEnabled !== undefined ? flag.isEnabled : flag.enabled;
-              }
-              return acc;
-            }, { ...DEFAULT_FEATURES });
-            setFeatureFlags(flags);
-        }
-      } catch (err) {
-        console.warn('Could not fetch feature flags, falling back to defaults.');
-        // On 401 or other errors, we default to enabled flags.
-        setFeatureFlags(DEFAULT_FEATURES);
-      }
-    };
-
-    fetchFeatureFlags();
-  }, [token]);
 
   const handleLogout = () => {
     logout();

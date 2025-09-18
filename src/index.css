@@ -3,27 +3,75 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-paper: #f9f9f6;
+    --color-forest: #0f1f1a;
+    --color-brand-green: #14B8A6;
+    --color-brand-red: #EF4444;
+    --color-brand-blue: #3B82F6;
+  }
+
   body {
-    @apply bg-light-background text-light-primary;
-    @apply dark:bg-dark-background dark:text-dark-primary;
+    @apply bg-light-background text-light-text-primary;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)), url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"><path fill="%23e2e2d9" fill-opacity="0.4" d="M1 3h1v1H1V3zm2-2h1v1H3V1z"></path></svg>');
+    transition: background-color 0.5s ease, color 0.5s ease;
   }
 
+  .dark body {
+    @apply bg-dark-background text-dark-text-primary;
+    background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><path fill-rule="evenodd" clip-rule="evenodd" fill="%23051410" d="M0 0h40v40H0V0zm10 20a10 10 0 1020 0 10 10 0 00-20 0z" fill-opacity="0.1"></path></svg>');
+  }
+
+  /* Headings */
   h1, h2, h3, h4, h5, h6 {
-    @apply text-light-primary dark:text-dark-primary;
+    @apply font-bold text-light-text-primary dark:text-dark-text-primary;
   }
 
-  p {
-    @apply text-light-secondary dark:text-dark-secondary;
-  }
-
+  /* Inputs */
   input, select, textarea {
-    @apply bg-light-input text-light-primary border border-light-border rounded-md;
-    @apply dark:bg-dark-input dark:text-dark-primary dark:border-dark-border;
-    @apply focus:ring-2 focus:ring-light-accent dark:focus:ring-dark-accent focus:outline-none;
+    @apply bg-light-card text-light-text-primary border border-gray-300 rounded-md shadow-sm;
+    @apply dark:bg-dark-card dark:text-dark-text-primary dark:border-gray-700;
+    @apply focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-green focus:outline-none transition-all;
+  }
+}
+
+@layer components {
+  /* Card Styling */
+  .card {
+    @apply bg-light-card dark:bg-dark-card rounded-lg shadow-md transition-all duration-300;
+    @apply hover:shadow-xl hover:-translate-y-1;
+  }
+  .dark .card {
+     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.16);
   }
 
-  /* General link styling */
-  a {
-    @apply text-light-accent dark:text-dark-accent hover:underline;
+  /* Button Styling */
+  .btn {
+    @apply px-4 py-2 rounded-md font-semibold text-white shadow-sm transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  .btn-primary {
+    @apply bg-brand-green hover:bg-opacity-90 focus:ring-brand-green;
+  }
+  .dark .btn-primary {
+    @apply shadow-lg shadow-brand-green/20;
+    animation: glow 2.5s ease-in-out infinite;
+  }
+  .btn-danger {
+    @apply bg-brand-red hover:bg-opacity-90 focus:ring-brand-red;
+  }
+  .dark .btn-danger {
+    @apply shadow-lg shadow-brand-red/20;
+    animation: glow 2.5s ease-in-out infinite;
+  }
+
+  /* Navbar */
+  .navbar-link-active {
+    @apply font-bold text-brand-green;
+  }
+  .dark .navbar-link-active {
+    @apply bg-brand-green/20 text-white rounded-full px-3 py-1;
+  }
+  .dark .navbar-link-inactive {
+    @apply text-gray-400 hover:text-white;
   }
 }

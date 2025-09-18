@@ -1,5 +1,6 @@
 const mongoose = require('mongoose'); // Added mongoose import
 const Transaction = require('../models/transactions');
+const User = require('../models/User');
 const { Parser } = require('json2csv');
 
 // @desc    Get all transactions
@@ -7,8 +8,14 @@ const { Parser } = require('json2csv');
 // @access  Private
 exports.getTransactions = async (req, res, next) => {
   try {
-    const { type, category, startDate, endDate, page = 1, limit = 10, search, sort } = req.query;
-    const query = { user: req.user.id };
+    const { type, category, startDate, endDate, page = 1, limit = 10, search, sort, all } = req.query;
+    let query = {};
+
+    if (req.user.role === 'admin' && all === 'true') {
+      // Admin can view all transactions
+    } else {
+      query.user = req.user.id;
+    }
 
     if (type) {
       query.type = type;
@@ -65,13 +72,29 @@ exports.getTransactions = async (req, res, next) => {
 // @access  Private
 exports.addTransaction = async (req, res, next) => {
   try {
-    const { type, category, amount, description } = req.body;
+    const { type, category, amount, description, date } = req.body;
+
+    if (!date || !new Date(date).getTime()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid date',
+      });
+    }
+
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid amount',
+      });
+    }
+
     const newTransaction = await Transaction.create({
       user: req.user.id,
       type,
       category,
       amount,
       description,
+      date: new Date(date),
     });
     return res.status(201).json({
       success: true,
@@ -114,11 +137,29 @@ exports.updateTransaction = async (req, res, next) => {
       });
     }
 
-    const { type, category, amount, description } = req.body;
+    const { type, category, amount, description, date } = req.body;
+
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid amount',
+      });
+    }
+
+    const updateData = { type, category, amount, description };
+    if (date) {
+      if (!new Date(date).getTime()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid date',
+        });
+      }
+      updateData.date = new Date(date);
+    }
 
     const updatedTransaction = await Transaction.findByIdAndUpdate(
       req.params.id,
-      { type, category, amount, description },
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -155,13 +196,14 @@ exports.deleteTransaction = async (req, res, next) => {
       });
     }
 
-    await transaction.remove();
+    await Transaction.findByIdAndDelete(req.params.id);
 
     return res.status(200).json({
       success: true,
       data: {},
     });
   } catch (err) {
+    console.error('Delete transaction error:', err);
     return res.status(500).json({
       success: false,
       error: 'Server Error',
@@ -175,6 +217,14 @@ exports.deleteTransaction = async (req, res, next) => {
 exports.exportTransactions = async (req, res, next) => {
   try {
     const transactions = await Transaction.find({ user: req.user.id });
+
+    if (!transactions || transactions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No transactions found to export',
+      });
+    }
+
     const fields = ['type', 'category', 'amount', 'date', 'description'];
     const json2csvParser = new Parser({ fields });
     const csv = json2csvParser.parse(transactions);
@@ -195,21 +245,31 @@ exports.exportTransactions = async (req, res, next) => {
 // @access  Private
 exports.getTransactionSummary = async (req, res, next) => {
   try {
-    const transactions = await Transaction.find({ user: req.user.id });
+    const userId = req.user.id;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid user ID' });
+    }
 
-    const totalIncome = transactions
-      .filter((item) => item.type === 'income')
-      .reduce((acc, item) => (acc += item.amount), 0);
+    const summary = await Transaction.aggregate([
+      { $match: { user: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: '$type',
+          total: { $sum: '$amount' },
+        },
+      },
+    ]);
 
-    const totalExpenses = transactions
-      .filter((item) => item.type === 'expense')
-      .reduce((acc, item) => (acc += item.amount), 0);
+    const summaryData = summary.reduce((acc, item) => {
+      acc[item._id] = item.total;
+      return acc;
+    }, {});
 
     return res.status(200).json({
       success: true,
       data: {
-        totalIncome,
-        totalExpenses,
+        income: summaryData.income || 0,
+        expense: summaryData.expense || 0,
       },
     });
   } catch (err) {
@@ -242,7 +302,7 @@ exports.getMonthlySummary = async (req, res, next) => {
 
     const labels = Object.keys(monthlyData).sort((a, b) => new Date(a) - new Date(b));
     const incomeData = labels.map(month => monthlyData[month].income);
-    const expenseData = labels.map(month => monthlyData[month].expense);
+        const expenseData = labels.map(month => monthlyData[month].expense);
 
     return res.status(200).json({
       success: true,
@@ -268,6 +328,10 @@ exports.getSpendingBreakdown = async (req, res, next) => {
     const { period } = req.query; // 'monthly' or 'weekly'
     const userId = req.user.id;
 
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid user ID' });
+    }
+
     let groupField;
     if (period === 'monthly') {
       groupField = {
@@ -284,7 +348,7 @@ exports.getSpendingBreakdown = async (req, res, next) => {
     }
 
     const breakdown = await Transaction.aggregate([
-      { $match: { user: mongoose.Types.ObjectId(userId), type: 'expense' } },
+      { $match: { user: new mongoose.Types.ObjectId(userId), type: 'expense' } },
       {
         $group: {
           _id: {
@@ -296,17 +360,11 @@ exports.getSpendingBreakdown = async (req, res, next) => {
       },
       {
         $group: {
-          _id: '$_id.period',
-          categories: {
-            $push: {
-              category: '$_id.category',
-              amount: '$totalAmount',
-            },
-          },
-          periodTotal: { $sum: '$totalAmount' },
+          _id: '$_id.category',
+          total: { $sum: '$totalAmount' },
         },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.week': 1 } },
+      { $sort: { total: -1 } },
     ]);
 
     return res.status(200).json({
@@ -356,11 +414,22 @@ exports.seedSampleTransaction = async (req, res, next) => {
 // @access  Private
 exports.getCategorySpending = async (req, res) => {
   try {
+    const userId = req.user.id;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid user ID' });
+    }
+
     const categorySpending = await Transaction.aggregate([
-      { $match: { user: mongoose.Types.ObjectId(req.user.id), type: 'expense' } },
+      { $match: { user: new mongoose.Types.ObjectId(userId), type: 'expense' } },
       { $group: { _id: '$category', total: { $sum: '$amount' } } },
-      { $project: { _id: 0, category: '$_id', total: '$total' } },
-      { $sort: { total: -1 } }
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          total: '$total',
+        },
+      },
+      { $sort: { total: -1 } },
     ]);
     res.json({ success: true, data: categorySpending });
   } catch (err) {

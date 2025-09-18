@@ -11,7 +11,7 @@ const SavingsPage = () => {
   const [summary, setSummary] = useState({ totalSavings: 0 });
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ amount: '', type: 'deposit', note: '' });
+  const [form, setForm] = useState({ amount: '', type: 'deposit', note: '', date: new Date().toISOString().split('T')[0] });
 
   const fetchData = useCallback(async () => {
     try {
@@ -34,13 +34,15 @@ const SavingsPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.amount || form.amount <= 0) return showNotification('Please enter a valid amount', 'error');
+    if (!form.date) return showNotification('Please select a date', 'error');
     try {
-      await axios.post('/savings', form);
+      await axios.post('/savings', { ...form, date: new Date(form.date).toISOString() });
       showNotification(`Transaction successful!`, 'success');
-      setForm({ amount: '', type: 'deposit', note: '' });
+      setForm({ amount: '', type: 'deposit', note: '', date: new Date().toISOString().split('T')[0] });
       fetchData();
     } catch (err) {
-      showNotification('Transaction failed', 'error');
+      const errorMessage = err.response?.data?.error || 'Transaction failed';
+      showNotification(errorMessage, 'error');
     }
   };
 
@@ -62,7 +64,7 @@ const SavingsPage = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-lg">{formatCurrency(item.amount)}</p>
-                    <p className="text-sm text-light-secondary dark:text-dark-secondary">{new Date(item.date).toLocaleDateString()}</p>
+                    <p className="text-sm text-light-secondary dark:text-dark-secondary">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</p>
                   </div>
                 </li>
               ))}
@@ -75,9 +77,10 @@ const SavingsPage = () => {
             <p className="text-4xl font-bold text-light-accent dark:text-dark-accent">{formatCurrency(summary.totalSavings)}</p>
           </Card>
           <Card>
-            <h2 className="text-xl font-bold mb-4">New Transaction</h2>
+            <h2 className="text-xl font-bold mb-4">Add Savings</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <input type="number" name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} required />
+              <input type="date" name="date" value={form.date} onChange={handleChange} required />
               <select name="type" value={form.type} onChange={handleChange}><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option></select>
               <input type="text" name="note" placeholder="Note" value={form.note} onChange={handleChange} />
               <button type="submit" className="w-full bg-light-accent text-white py-2 rounded-md min-h-[44px]">Submit</button>

@@ -2,14 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from '../utils/axios';
 import Card from '../components/Card';
 import { useNotification } from '../context/NotificationContext';
+import { useFeatures } from '../context/FeatureContext';
 
 const AdminPage = () => {
   const { showNotification } = useNotification();
+  const { featureFlags, fetchFeatureFlags, updateFeatureFlag } = useFeatures();
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newFeatureName, setNewFeatureName] = useState('');
 
-  const fetchFeatures = useCallback(async () => {
+  const fetchFeaturesCallback = useCallback(async () => {
     try {
       setLoading(true);
       const res = await axios.get('/admin/features');
@@ -22,17 +24,18 @@ const AdminPage = () => {
   }, [showNotification]);
 
   useEffect(() => {
-    fetchFeatures();
-  }, [fetchFeatures]);
+    fetchFeaturesCallback();
+  }, [fetchFeaturesCallback]);
 
   const handleAddFeature = async (e) => {
     e.preventDefault();
     if (!newFeatureName.trim()) return;
     try {
-      await axios.post('/admin/features', { name: newFeatureName, isEnabled: true });
+      const res = await axios.post('/admin/features', { name: newFeatureName, isEnabled: true });
       showNotification('Feature added', 'success');
       setNewFeatureName('');
-      fetchFeatures();
+      setFeatures(prevFeatures => [...prevFeatures, res.data]);
+      updateFeatureFlag(res.data.name, res.data.isEnabled);
     } catch (err) {
       showNotification(err.response?.data?.msg || 'Failed to add feature', 'error');
     }
@@ -40,9 +43,10 @@ const AdminPage = () => {
 
   const handleToggleFeature = async (feature) => {
     try {
-      await axios.put(`/admin/features/${feature._id}`, { isEnabled: !feature.isEnabled, name: feature.name });
+      const res = await axios.put(`/admin/features/${feature._id}`, { isEnabled: !feature.isEnabled, name: feature.name });
       showNotification('Feature updated', 'success');
-      fetchFeatures();
+      setFeatures(prevFeatures => prevFeatures.map(f => f._id === feature._id ? res.data : f));
+      updateFeatureFlag(res.data.name, res.data.isEnabled);
     } catch (err) {
       showNotification('Failed to update feature', 'error');
     }
@@ -53,7 +57,11 @@ const AdminPage = () => {
     try {
       await axios.delete(`/admin/features/${id}`);
       showNotification('Feature deleted', 'success');
-      fetchFeatures();
+      const deletedFeature = features.find(f => f._id === id);
+      setFeatures(prevFeatures => prevFeatures.filter(f => f._id !== id));
+      if (deletedFeature) {
+        updateFeatureFlag(deletedFeature.name, false); // Assuming deletion means disabling the feature
+      }
     } catch (err) {
       showNotification('Failed to delete feature', 'error');
     }
