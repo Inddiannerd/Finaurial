@@ -21,6 +21,18 @@ const GoalSchema = new mongoose.Schema({
   deadline: {
     type: Date,
   },
+  contributions: [
+    {
+      amount: {
+        type: Number,
+        required: true,
+      },
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
   reminderDate: { // New field
     type: Date,
   },

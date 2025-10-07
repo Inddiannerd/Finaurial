@@ -4,26 +4,21 @@ const Transaction = require('../models/transactions');
 exports.getBudgets = async (req, res) => {
   try {
     const budgets = await Budget.find({ user: req.user.id });
-    // Optionally, enrich with current spending
-    const enrichedBudgets = await Promise.all(budgets.map(async (budget) => {
-        const spent = await Transaction.aggregate([
-            { $match: { user: budget.user, category: budget.category, type: 'expense' } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]);
-        return {
-            ...budget.toObject(),
-            spent: spent.length > 0 ? spent[0].total : 0
-        };
-    }));
-    res.status(200).json({ success: true, data: enrichedBudgets });
+    res.status(200).json({ success: true, data: budgets });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server Error' });
   }
 };
 
 exports.addBudget = async (req, res) => {
+  const { category, amount } = req.body;
+
+  if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ success: false, error: 'Amount must be a positive number.' });
+  }
+
   try {
-    const budget = await Budget.create({ ...req.body, user: req.user.id });
+    const budget = await Budget.create({ category, amount, user: req.user.id });
     res.status(201).json({ success: true, data: budget });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -44,7 +39,12 @@ exports.deleteBudget = async (req, res) => {
   try {
     const budget = await Budget.findById(req.params.id);
     if (!budget) return res.status(404).json({ success: false, error: 'Budget not found' });
-    await budget.remove();
+
+    if (budget.user.toString() !== req.user.id) {
+      return res.status(401).json({ success: false, error: 'Not authorized' });
+    }
+
+    await Budget.findByIdAndDelete(req.params.id);
     res.status(200).json({ success: true, data: {} });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server Error' });

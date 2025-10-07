@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from '../utils/axios';
 import { useNotification } from '../context/NotificationContext';
 import Card from '../components/Card';
-
 import { useCurrency } from '../context/CurrencyContext';
 
 const SavingsPage = () => {
@@ -46,6 +45,30 @@ const SavingsPage = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this entry?')) {
+      try {
+        await axios.delete(`/savings/${id}`);
+        showNotification('Entry deleted', 'success');
+        fetchData();
+      } catch (err) {
+        showNotification('Failed to delete entry', 'error');
+      }
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (window.confirm('Are you sure you want to clear all savings history? This action cannot be undone.')) {
+      try {
+        await axios.delete('/savings');
+        showNotification('Savings history cleared', 'success');
+        fetchData();
+      } catch (err) {
+        showNotification('Failed to clear history', 'error');
+      }
+    }
+  };
+
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -54,7 +77,12 @@ const SavingsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           <Card>
-            <h2 className="text-xl font-bold mb-4">History</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">History</h2>
+              {history.length > 0 && (
+                <button onClick={handleClearAll} className="btn btn-danger">Clear All</button>
+              )}
+            </div>
             <ul className="divide-y divide-light-border dark:divide-dark-border">
               {history.map(item => (
                 <li key={item._id} className="py-3 flex justify-between items-center">
@@ -62,9 +90,12 @@ const SavingsPage = () => {
                     <p className={`font-semibold ${item.type === 'deposit' ? 'text-light-success' : 'text-light-error'}`}>{item.type}</p>
                     <p className="text-sm text-light-secondary dark:text-dark-secondary">{item.note || '-'}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">{formatCurrency(item.amount)}</p>
-                    <p className="text-sm text-light-secondary dark:text-dark-secondary">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</p>
+                  <div className="text-right flex items-center">
+                    <div>
+                      <p className="font-bold text-lg">{formatCurrency(item.amount)}</p>
+                      <p className="text-sm text-light-secondary dark:text-dark-secondary">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</p>
+                    </div>
+                    <button onClick={() => handleDelete(item._id)} className="ml-4 text-red-500 hover:text-red-700">🗑️</button>
                   </div>
                 </li>
               ))}
@@ -79,11 +110,11 @@ const SavingsPage = () => {
           <Card>
             <h2 className="text-xl font-bold mb-4">Add Savings</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <input type="number" name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} required />
-              <input type="date" name="date" value={form.date} onChange={handleChange} required />
-              <select name="type" value={form.type} onChange={handleChange}><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option></select>
-              <input type="text" name="note" placeholder="Note" value={form.note} onChange={handleChange} />
-              <button type="submit" className="w-full bg-light-accent text-white py-2 rounded-md min-h-[44px]">Submit</button>
+              <input type="number" name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} required className="w-full p-2" />
+              <input type="date" name="date" value={form.date} onChange={handleChange} required className="w-full p-2" />
+              <select name="type" value={form.type} onChange={handleChange} className="w-full p-2"><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option></select>
+              <input type="text" name="note" placeholder="Note" value={form.note} onChange={handleChange} className="w-full p-2" />
+              <button type="submit" className="w-full btn btn-primary">Submit</button>
             </form>
           </Card>
         </div>

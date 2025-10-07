@@ -38,6 +38,11 @@ router.get('/summary', auth, transactionsController.getTransactionSummary);
 // @access  Private
 router.get('/monthly-summary', auth, transactionsController.getMonthlySummary);
 
+// @route   GET api/transactions/reports
+// @desc    Get all reports data
+// @access  Private
+router.get('/reports', auth, transactionsController.getReportsData);
+
 // @route   GET api/transactions/spending-breakdown
 // @desc    Get spending breakdown by category
 // @access  Private

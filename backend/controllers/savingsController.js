@@ -71,3 +71,38 @@ exports.addSaving = async (req, res) => {
     res.status(500).json({ success: false, error: 'Server Error' });
   }
 };
+
+// @desc    Delete a savings transaction
+// @route   DELETE /api/savings/:id
+// @access  Private
+exports.deleteSaving = async (req, res) => {
+    try {
+        const saving = await Saving.findById(req.params.id);
+        if (!saving) {
+            return res.status(404).json({ success: false, error: 'Saving not found' });
+        }
+
+        if (saving.user.toString() !== req.user.id) {
+            return res.status(401).json({ success: false, error: 'Not authorized' });
+        }
+
+        await Saving.findByIdAndDelete(req.params.id);
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+// @desc    Clear all savings history
+// @route   DELETE /api/savings
+// @access  Private
+exports.clearSavings = async (req, res) => {
+    try {
+        await Saving.deleteMany({ user: req.user.id });
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};

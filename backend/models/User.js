@@ -33,10 +33,7 @@ const UserSchema = new mongoose.Schema({
     targetAmount: Number,
     progress: { type: Number, default: 0 }
   }],
-  budget: [{
-    category: String,
-    amount: Number
-  }],
+
   transactions: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Transaction'
@@ -46,5 +43,4 @@ const UserSchema = new mongoose.Schema({
     default: Date.now
   }
 });
-
 module.exports = mongoose.model('User', UserSchema);

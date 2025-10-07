@@ -10,13 +10,15 @@ const BudgetSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  limit: {
+  amount: {
     type: Number,
     required: true,
+    min: [0, 'Amount must be a positive number'],
   },
   spent: {
     type: Number,
     default: 0,
+    min: [0, 'Spent amount must be a positive number'],
   },
 });
 

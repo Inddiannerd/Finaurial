@@ -6,7 +6,7 @@ import { useFeatures } from '../context/FeatureContext';
 
 const AdminPage = () => {
   const { showNotification } = useNotification();
-  const { featureFlags, fetchFeatureFlags, updateFeatureFlag } = useFeatures();
+  const { updateFeatureFlag } = useFeatures();
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newFeatureName, setNewFeatureName] = useState('');

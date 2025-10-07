@@ -38,3 +38,23 @@ exports.deleteGoal = async (req, res) => {
     res.status(500).json({ success: false, error: 'Server Error' });
   }
 };
+
+exports.addContribution = async (req, res) => {
+  try {
+    const goal = await Goal.findById(req.params.id);
+    if (!goal) return res.status(404).json({ success: false, error: 'Goal not found' });
+
+    const { amount } = req.body;
+    goal.currentAmount += amount;
+    goal.contributions.push({ amount });
+
+    if (goal.currentAmount >= goal.targetAmount) {
+      goal.status = 'completed';
+    }
+
+    await goal.save();
+    res.status(200).json({ success: true, data: goal });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Server Error' });
+  }
+};
