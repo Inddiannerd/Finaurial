@@ -28,7 +28,7 @@ app.use(express.json());
 
 // Enable cors with specific options
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://finaurial.vercel.app/login' : 'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production' ? 'https://finaurial.vercel.app' : 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'x-auth-token']
