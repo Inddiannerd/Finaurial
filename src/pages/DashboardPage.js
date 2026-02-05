@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from '../utils/axios';
 import Card from '../components/Card';
 import { Line, Pie } from 'react-chartjs-2';
+import { motion } from 'framer-motion';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler, BarElement } from 'chart.js';
 import { useTheme } from '../context/ThemeContext';
 import { useCurrency } from '../context/CurrencyContext';
@@ -10,11 +11,22 @@ import MonthlyExpensesChart from '../components/charts/MonthlyExpensesChart';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler, BarElement);
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+};
+
 const DashboardCard = ({ title, value, format, colorClass = '' }) => (
-  <Card>
-    <h2 className="text-sm font-medium text-light-secondary dark:text-dark-secondary">{title}</h2>
-    <p className={`mt-1 text-3xl font-semibold ${colorClass}`}>{format(value)}</p>
-  </Card>
+  <motion.div
+    variants={cardVariants}
+    whileHover={{ scale: 1.02, y: -5 }}
+    transition={{ type: "spring", stiffness: 300, damping: 15 }}
+  >
+    <Card>
+      <h2 className="text-sm font-medium text-light-secondary dark:text-dark-secondary">{title}</h2>
+      <p className={`mt-1 text-3xl font-semibold ${colorClass}`}>{format(value)}</p>
+    </Card>
+  </motion.div>
 );
 
 const SkeletonCard = () => (
@@ -188,12 +200,23 @@ const DashboardPage = () => {
           </div>
         </Card>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          visible: {
+            transition: {
+              staggerChildren: 0.1,
+            },
+          },
+        }}
+      >
         <DashboardCard title="Total Balance" value={summary?.totalBalance} format={formatCurrency} />
         <DashboardCard title="Total Income" value={summary?.totalIncome} format={formatCurrency} colorClass="text-light-success dark:text-dark-success" />
         <DashboardCard title="Total Expenses" value={summary?.totalExpenses} format={formatCurrency} colorClass="text-light-error dark:text-dark-error" />
         <DashboardCard title="Total Savings" value={summary?.totalSavings} format={formatCurrency} colorClass="text-light-accent dark:text-dark-accent" />
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3">

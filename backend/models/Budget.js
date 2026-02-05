@@ -20,6 +20,17 @@ const BudgetSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Spent amount must be a positive number'],
   },
+  amountMinor: {
+    type: Number,
+  },
+  spentMinor: {
+    type: Number,
+    default: 0,
+  },
+  currency: {
+    type: String,
+    default: 'INR',
+  },
 });
 
 module.exports = mongoose.model('Budget', BudgetSchema);
